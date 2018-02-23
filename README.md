@@ -1,56 +1,73 @@
 # **Finding Lane Lines on the Road** 
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
-<img src="examples/laneLines_thirdPass.jpg" width="480" alt="Combined Image" />
 
-Overview
 ---
+[//]: # (Image References)
 
-When we drive, we use our eyes to decide where to go.  The lines on the road that show us where the lanes are act as our constant reference for where to steer the vehicle.  Naturally, one of the first things we would like to do in developing a self-driving car is to automatically detect lane lines using an algorithm.
+[hsv]: ./writeup/hsv.png "hsv"
+[yelwhi]: ./writeup/yellow_white_lines.png "yellow_white_lines"
+[gaus]: ./writeup/blur.png "gaus"
+[canny]: ./writeup/canny.png "canny"
+[canny]: ./writeup/canny.png "canny"
+[merged]: ./writeup/draw_lines_merge.png "merged"
 
-In this project you will detect lane lines in images using Python and OpenCV.  OpenCV means "Open-Source Computer Vision", which is a package that has many useful tools for analyzing images.  
-
-To complete the project, two files will be submitted: a file containing project code and a file containing a brief write up explaining your solution. We have included template files to be used both for the [code](https://github.com/udacity/CarND-LaneLines-P1/blob/master/P1.ipynb) and the [writeup](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md).The code file is called P1.ipynb and the writeup template is writeup_template.md 
-
-To meet specifications in the project, take a look at the requirements in the [project rubric](https://review.udacity.com/#!/rubrics/322/view)
+# **Overview** 
+the porppose of the project is to define a method to detect lanesof the road. When we drive, we use our eyes to decide where to go. The lines on the road that show us where the lanes are act as our constant reference for where to steer the vehicle. 
+In this project you will detect lane lines in images using Python and OpenCV.
 
 
-Creating a Great Writeup
+# **Proposed Pipeline**
+The pipeline consists of the following steps
+- Color Selection (Yellow and white lanes)
+- Convert image to grayscale
+- Canny Edge Detection
+- Region of Interest Selection
+- Hough Transform Line Detection
+
+The above mentioned pipeline is using toprocess the video , the video is beeing looked at at singleimage where each mages goes throught he pipe line.
+
+Below a detailed description of each step of the pipe line:
+#### 1.Color selection:
+We first run color selection on the input frame to select only the yellow and white shades of color and mask all other colors. To do this, we convert the input image to HSV (hue, saturation, value) color space. This makes it easier to select required colors using OpenCV's inRange function. 
+![alt text][hsv]
+
+Select yellow and white color
+
+![alt text][yelwhi]
+
+#### 2.Convert image to grayscale:
+Then we transform the color selected frame to a grayscale frame to obtian better results for canny edge
+To normalize any noise and sharpness, we perform a Gaussian blur on the grayscale image 
+![alt text][gaus]
+#### 4.Canny Edge Detection:
+We then run the Canny Edge Detection algorithm to detect edges in the frames
+![alt text][canny]
+#### 5.Region of Interest Selection:
+We apply a Region of Interest mask which is a fixed polygon area to only retain the road lanes.
+#### 6.Hough Transform Line Detection:
+Using probabilistic Hough transform we find line segments in the frame. 
+Then, using draw_lines() function we draw the lines which represnts the road lanes. 
+##### The function draw_lines() follows the below the steps to obtain/Draw the correct lines: 
+- takes all the lines found by the Hough transform.
+- filtering the lines and ignore verical lines , we conside them as noise.
+- splits them into left/right line segments using their slope.
+- find the interception , and ignore lines which deviate from the main min/max lines as we consider them the right and left lanes.
+- averages multiple segments to get a single line each for left and right
+#### 7.Merging Images:
+now we merge our images, to obtain the final result
+![alt text][merged]
+
 ---
-For this project, a great writeup should provide a detailed response to the "Reflection" section of the [project rubric](https://review.udacity.com/#!/rubrics/322/view). There are three parts to the reflection:
+###  Identify potential shortcomings with your current pipeline
 
-1. Describe the pipeline
-
-2. Identify any shortcomings
-
-3. Suggest possible improvements
-
-We encourage using images in your writeup to demonstrate how your pipeline works.  
-
-All that said, please be concise!  We're not looking for you to write a book here: just a brief description.
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup. Here is a link to a [writeup template file](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md). 
+- The pipeline relies on a restricted region of interest based on several iteration.
+- I belive the algorithm wont work as expected if the road was going up or down , as we have a constant egion of nterest.
+- I have constant limits for color detections , i think the pipeline will perfom badly on darker or foggy road
 
 
-The Project
----
+###  Suggest possible improvements to your pipeline
+- Dynamic selection of the region of interest.
+- Identify a better method to detect curves.
+- Identify better method to detect colors in differnt enviroment ,this should be dynamic
 
-## If you have already installed the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) you should be good to go!   If not, you should install the starter kit to get started on this project. ##
-
-**Step 1:** Set up the [CarND Term1 Starter Kit](https://classroom.udacity.com/nanodegrees/nd013/parts/fbf77062-5703-404e-b60c-95b78b2f3f9e/modules/83ec35ee-1e02-48a5-bdb7-d244bd47c2dc/lessons/8c82408b-a217-4d09-b81d-1bda4c6380ef/concepts/4f1870e0-3849-43e4-b670-12e6f2d4b7a7) if you haven't already.
-
-**Step 2:** Open the code in a Jupyter Notebook
-
-You will complete the project code in a Jupyter notebook.  If you are unfamiliar with Jupyter Notebooks, check out <A HREF="https://www.packtpub.com/books/content/basics-jupyter-notebook-and-python" target="_blank">Cyrille Rossant's Basics of Jupyter Notebook and Python</A> to get started.
-
-Jupyter is an Ipython notebook where you can run blocks of code and see results interactively.  All the code for this project is contained in a Jupyter notebook. To start Jupyter in your browser, use terminal to navigate to your project directory and then run the following command at the terminal prompt (be sure you've activated your Python 3 carnd-term1 environment as described in the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) installation instructions!):
-
-`> jupyter notebook`
-
-A browser window will appear showing the contents of the current directory.  Click on the file called "P1.ipynb".  Another browser window will appear displaying the notebook.  Follow the instructions in the notebook to complete the project.  
-
-**Step 3:** Complete the project and submit both the Ipython notebook and the project writeup
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
 
