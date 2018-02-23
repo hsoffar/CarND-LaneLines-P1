@@ -65,100 +65,91 @@ def region_of_interest(img, vertices):
     return masked_image
 
 
-def draw_lines(img, lines, color=[255, 0, 0], thickness=10):
-    """
-    NOTE: this is the function you might want to use as a starting point once you want to
-    average/extrapolate the line segments you detect to map out the full
-    extent of the lane (going from the result shown in raw-lines-example.mp4
-    to that shown in P1_example.mp4).
 
-    Think about things like separating line segments by their
-    slope ((y2-y1)/(x2-x1)) to decide which segments are part of the left
-    line vs. the right line.  Then, you can average the position of each of
-    the lines and extrapolate to the top and bottom of the lane.
+def get_lines_slope_intercepts(lines):
+	 #create a list of slope and intercepts for all lines
+    var_slope_intercept = np.zeros((len(lines),2))
+    #calculate the slope for the lines we have
+    #print (var_slope_intercept)
+    for i,line in enumerate(lines):
+        for x1,y1,x2,y2 in line:
+            if x2==x1:
+                continue # ignore a vertical line
+        slope = (y2-y1)/(x2-x1)
+        intercept = y1 - x1 * slope
+        var_slope_intercept[i]=[slope,intercept]
+    return (var_slope_intercept)
 
-    This function draws `lines` with `color` and `thickness`.
-    Lines are drawn on the image inplace (mutates the image).
-    If you want to make the lines semi-transparent, think about combining
-    this function with the weighted_img() function below
-    """
+
+def get_lines_in_range(xf_size,var_slope_intercept_p,left_slope_max,right_slope_min):
+    #get the max , min slope:
+    devaitation_slope = 0.050
+    deviation_x_intercept = 0.050 * xf_size
+    left_slopes = []
+    left_intercepts = []
+    right_slopes = []
+    right_intercepts = []
+    # this gets slopes and intercepts of lines similar to the lines with the max (immediate left) and min
+    # (immediate right) slopes (i.e. slope and intercept within x%)
+    for var_line_slopes_intercepts_matrix in var_slope_intercept_p:
+        # print (0.15 * x_size)
+        # print (var_line_slopes_intercepts_matrix[0] - max_slope_line[0])
+        # print (var_line_slopes_intercepts_matrix[1] - max_slope_line[1])
+        if (abs(var_line_slopes_intercepts_matrix[0] - left_slope_max[0]) < devaitation_slope) and (abs(var_line_slopes_intercepts_matrix[1] - left_slope_max[1]) < (deviation_x_intercept)):
+            right_slopes.append(var_line_slopes_intercepts_matrix[0])
+            right_intercepts.append(var_line_slopes_intercepts_matrix[1])
+        elif (abs(var_line_slopes_intercepts_matrix[0] - right_slope_min[0]) < devaitation_slope) and (abs(var_line_slopes_intercepts_matrix[1] - right_slope_min[1]) < (deviation_x_intercept)):
+            left_slopes.append(var_line_slopes_intercepts_matrix[0])
+            left_intercepts.append(var_line_slopes_intercepts_matrix[1])
+    return (right_slopes,right_intercepts,left_slopes,left_intercepts)
+
+
+def draw_lines(img, lines, color_l=[255, 0, 0],color_r=[0, 255, 0] , thickness=10):
     x_size = img.shape[1]
     y_size = img.shape[0]
-
-    #create a list of slope and intercepts for all lines
-    lines_slope_intercept = np.zeros((len(lines),2))
-    #calculate the slope for the lines we have
-    print (lines_slope_intercept)
-    for index,line in enumerate(lines):
-        for x1,y1,x2,y2 in line:
-            slope = (y2-y1)/(x2-x1)
-            intercept = y1 - x1 * slope
-            lines_slope_intercept[index]=[slope,intercept]
-
-    print ("lines")
-    print (lines)
-    print ("lines_slope_intercept")
-    print (lines_slope_intercept)
-
-
-    #get max/ min slope of the detected lines
-    max_slope_line = lines_slope_intercept[lines_slope_intercept.argmax(axis=0)[0]]
-    min_slope_line = lines_slope_intercept[lines_slope_intercept.argmin(axis=0)[0]]
-    print("max_slope_line")
-    print(max_slope_line)
-    print("min_slope_line")
-    print(min_slope_line)
-
     left_slopes = []
     left_intercepts = []
     right_slopes = []
     right_intercepts = []
 
+    var_slope_intercept=get_lines_slope_intercepts(lines)
 
-    # this gets slopes and intercepts of lines similar to the lines with the max (immediate left) and min
-    # (immediate right) slopes (i.e. slope and intercept within x%)
-    for line_slopes in lines_slope_intercept:
-        print (0.15 * x_size)
-        print (line_slopes[0] - max_slope_line[0])
-        print (line_slopes[1] - max_slope_line[1])
-        if abs(line_slopes[0] - max_slope_line[0]) < 0.15 and abs(line_slopes[1] - max_slope_line[1]) < (0.15 * x_size):
-            right_slopes.append(line_slopes[0])
-            right_intercepts.append(line_slopes[1])
-        elif abs(line_slopes[0] - min_slope_line[0]) < 0.15 and abs(line_slopes[1] - min_slope_line[1]) < (0.15 * x_size):
-            left_slopes.append(line_slopes[0])
-            left_intercepts.append(line_slopes[1])
+    #get max/ min slope of the detected lines
+    max_slope_line = var_slope_intercept[var_slope_intercept.argmax(axis=0)[0]]
+    min_slope_line = var_slope_intercept[var_slope_intercept.argmin(axis=0)[0]]
 
-    print ("left slopes and intercepts")
-    print (left_slopes)
-    print (left_intercepts)
-    print ("right slopes and intercepts")
-    print (right_slopes)
-    print (right_intercepts)
-
+    (right_slopes,right_intercepts ,left_slopes , left_intercepts) = get_lines_in_range(x_size,var_slope_intercept,max_slope_line,min_slope_line)
 
     # left and right lines are averages of these slopes and intercepts, extrapolate lines to edges and center*
     # *roughly
-    new_lines = np.zeros(shape=(1,2,4), dtype=np.int32)
+
+    left_avergaed_lines= np.zeros(shape=(1,1,4), dtype=np.int32)
+    right_avergaed_lines= np.zeros(shape=(1,1,4), dtype=np.int32)
     #iterate over the left slops lines
     if len(left_slopes) > 0:
         left_line = [sum(left_slopes)/len(left_slopes),sum(left_intercepts)/len(left_intercepts)]
-        left_bottom_x = (y_size - left_line[1])/left_line[0]
-        left_top_x = (y_size*.575 - left_line[1])/left_line[0]
-        if (left_bottom_x >= 0):
-            new_lines[0][0] =[left_bottom_x,y_size,left_top_x,y_size*.575]
+        left_line_x = (y_size - left_line[1])/left_line[0]
+        left_top_x = (y_size*.6 - left_line[1])/left_line[0]
+        if (left_line_x > 0):
+            left_avergaed_lines[0][0] =[left_line_x,y_size,left_top_x,y_size*.6]
 
 #iterate over the rigjht slops lines
+
     if len(right_slopes) > 0:
         right_line = [sum(right_slopes)/len(right_slopes),sum(right_intercepts)/len(right_intercepts)]
         right_bottom_x = (y_size - right_line[1])/right_line[0]
-        right_top_x = (y_size*.575 - right_line[1])/right_line[0]
-        if (right_bottom_x <= x_size):
-            new_lines[0][1]=[right_bottom_x,y_size,right_top_x,y_size*.575]
+        right_top_x = (y_size*.6 - right_line[1])/right_line[0]
+        if (right_bottom_x < x_size):
+            right_avergaed_lines[0][0]=[right_bottom_x,y_size,right_top_x,y_size*.6]
 
 #actively drawing the line
-    for line in new_lines:
+    for line in left_avergaed_lines:
         for x1,y1,x2,y2 in line:
-            cv2.line(img, (x1, y1), (x2, y2), color, thickness)
+            cv2.line(img, (x1, y1), (x2, y2), color_l, thickness)
+#actively drawing the line
+    for line in right_avergaed_lines:
+        for x1,y1,x2,y2 in line:
+            cv2.line(img, (x1, y1), (x2, y2), color_r, thickness)
 
 def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
     """
@@ -173,7 +164,7 @@ def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
 
 # Python 3 has support for cool math symbols.
 
-def weighted_img(img, initial_img, α=0.8, β=1., γ=0.):
+def weighted_img(img, initial_img, α=1, β=0.95, γ=0.):
     """
     `img` is the output of the hough_lines(), An image with lines drawn on it.
     Should be a blank image (all black) with lines drawn on it.
@@ -189,9 +180,9 @@ def weighted_img(img, initial_img, α=0.8, β=1., γ=0.):
 
 #a debug function i use it to monitor my pipeline excution
 def print_gimage(img, title = "default"):
-    if (debug == 21):
+    if (debug == 12):
         print(title);
-        plt.imshow(img)
+        plt.imshow(img,cmap='gray')
         plt.show()
 
 
@@ -233,7 +224,7 @@ def proces_image(image):
     print_gimage(boosted_lanes,"boosted_lanes")
 
     # Define a kernel size and apply Gaussian smoothing
-    kernel_size = 5
+    kernel_size = 15
     image = gaussian_blur(boosted_lanes,kernel_size)
     print_gimage(image,"beforecanny")
 
@@ -257,11 +248,17 @@ def proces_image(image):
 
     # Define the Hough transform parameters
     # Make a blank the same size as our image to draw on
-    rho = 3 # distance resolution in pixels of the Hough grid
+    rho = 1 # distance resolution in pixels of the Hough grid
     theta = np.pi/180 # angular resolution in radians of the Hough grid
-    threshold = 60     # minimum number of votes (intersections in Hough grid cell)
-    min_line_length = 120 #minimum number of pixels making up a line
-    max_line_gap = 250    # maximum gap in pixels between connectable line segments
+    threshold = 20     # minimum number of votes (intersections in Hough grid cell)
+    min_line_length = 20  #minimum number of pixels making up a line
+    max_line_gap =mg, rho, theta, threshold, min_line_len, max_line_gap):
+    image = hough_lines(image,rho,theta,threshold,min_line_length,max_line_gap)
+
+
+    result = weighted_img(image,image_o)
+    return result
+ 300    # maximum gap in pixels between connectable line segments
     line_image = np.copy(image)*0 # creating a blank to draw lines on
     #hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
     image = hough_lines(image,rho,theta,threshold,min_line_length,max_line_gap)
